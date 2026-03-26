@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EpicAscii</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; background: #0a0a0a; color: #ccc;
+    font-family: 'Menlo','Monaco','Courier New',monospace; }
+
+/* -- Connect screen -- */
+#connect-screen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100vh; gap: 12px;
+}
+#connect-screen h1 { color: #fc2; font-size: 28px; letter-spacing: 4px; }
+#connect-screen .sub { color: #666; font-size: 13px; margin-bottom: 10px; }
+#connect-screen button {
+    background: #fc2; color: #000; border: none; font-family: inherit;
+    font-size: 16px; font-weight: bold; padding: 10px 40px; cursor: pointer;
+}
+#connect-screen button:hover { background: #fd4; }
+#connect-screen .cfg { color: #555; font-size: 12px; margin-top: 16px; }
+#connect-screen .cfg input {
+    background: #1a1a1a; border: 1px solid #333; color: #aaa;
+    font-family: inherit; font-size: 12px; padding: 3px 8px; width: 160px;
+}
+
+/* -- Game screens (all share same container) -- */
+#game { display: none; height: 100vh; flex-direction: column; }
+#game.active { display: flex; }
+
+/* -- Story / Loot screens -- */
+.text-screen {
+    display: none; flex: 1; align-items: center; justify-content: center; padding: 20px;
+    flex-direction: column;
+}
+.text-screen.active { display: flex; }
+.story-box, .loot-box { max-width: 680px; width: 100%; background: #111; border: 1px solid #333; padding: 28px; }
+.story-box h2, .loot-box h2 { color: #fc2; font-size: 20px; margin-bottom: 14px; }
+.story-text { line-height: 1.7; font-size: 14px; color: #ccc; white-space: pre-wrap; margin-bottom: 20px; }
+.story-choice {
+    display: block; width: 100%; text-align: left;
+    background: #1a1a1a; border: 1px solid #444; color: #ccc;
+    padding: 10px 14px; margin: 5px 0; cursor: pointer;
+    font-family: inherit; font-size: 14px;
+}
+.story-choice:hover { border-color: #fc2; color: #fff; }
+.story-choice.chosen { border-color: #4c4; color: #4c4; }
+.waiting { color: #888; font-size: 12px; margin-top: 10px; }
+.loot-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #1a1a1a; border: 1px solid #333; padding: 8px 14px;
+    margin: 4px 0; cursor: pointer;
+}
+.loot-item:hover { border-color: #fc2; }
+.loot-item .pick { background: #fc2; color: #000; border: none; padding: 3px 10px;
+    font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; }
+
+/* -- Battle screen -- */
+#battle { display: none; flex: 1; flex-direction: column; min-height: 0; }
+#battle.active { display: flex; }
+#bhdr {
+    background: #111; padding: 2px 8px; font-size: 12px;
+    display: flex; justify-content: space-between; border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+#map-wrap { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+#map { white-space: pre; font-size: 14px; line-height: 1.15; padding: 0; position: absolute; top: 0; left: 0; }
+#bar {
+    background: #181810; padding: 2px 8px; font-size: 12px;
+    border-top: 1px solid #333; display: flex; gap: 12px; align-items: center;
+    flex-shrink: 0; flex-wrap: wrap;
+}
+.hpb { background: #333; width: 80px; height: 10px; display: inline-block; border: 1px solid #555; vertical-align: middle; }
+.hpf { height: 100%; }
+#log {
+    background: #0a0a0a; border-top: 1px solid #222; padding: 2px 8px;
+    font-size: 12px; max-height: 60px; overflow-y: auto; color: #999;
+    flex-shrink: 0;
+}
+.ab { color: #6af; } .ar { color: #f66; }
+
+/* Overlays */
+.ov {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: #1a1a1a; border: 2px solid #fc2; padding: 16px;
+    min-width: 320px; max-height: 70vh; overflow-y: auto; z-index: 200; font-size: 13px;
+}
+.ov h2 { color: #fc2; margin-bottom: 8px; font-size: 15px; }
+.ov .ii { padding: 3px 6px; cursor: pointer; display: flex; justify-content: space-between; }
+.ov .ii:hover { background: #333; }
+.ov .ii.sel { background: #442; }
+.ov .eq { color: #fc2; }
+.ov .foot { margin-top: 8px; border-top: 1px solid #333; padding-top: 6px; color: #666; font-size: 11px; }
+
+#death-ov {
+    display: none; position: fixed; inset: 0; background: rgba(60,0,0,0.6);
+    z-index: 300; flex-direction: column; align-items: center; justify-content: center;
+}
+#death-ov .dt { font-size: 24px; color: #f44; }
+#death-ov .ds { color: #aaa; font-size: 13px; margin-top: 8px; }
+
+#help-ov {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: #1a1a1a; border: 1px solid #666; padding: 16px; z-index: 200;
+    font-size: 12px; line-height: 1.6; min-width: 280px;
+}
+#help-ov h2 { color: #fc2; margin-bottom: 6px; font-size: 14px; }
+#help-ov kbd { background: #333; border: 1px solid #555; padding: 0 4px; border-radius: 2px; font-size: 11px; }
+
+#chat-in {
+    display: none; position: fixed; bottom: 24px; left: 8px; right: 8px;
+    background: #1a1a2a; border: 1px solid #66f; padding: 4px 8px;
+    color: #fff; font-family: inherit; font-size: 13px; outline: none; z-index: 100;
+}
+</style>
+</head>
+<body>
+
+<div id="connect-screen">
+    <h1>EPIC ASCII</h1>
+    <div class="sub">A soldier is born. Will they survive?</div>
+    <button onclick="connect()">Join the War</button>
+    <div class="cfg">Server: <input type="text" id="srv" value="localhost:8765"></div>
+</div>
+
+<div id="game">
+    <div id="story-scr" class="text-screen"><div class="story-box" id="story-box"></div></div>
+    <div id="loot-scr" class="text-screen"><div class="loot-box" id="loot-box"></div></div>
+    <div id="battle" class="active">
+        <div id="bhdr"><span id="btitle"></span><span><span class="ab" id="bc"></span> vs <span class="ar" id="rc"></span></span></div>
+        <div id="map-wrap"><div id="map"></div></div>
+        <div id="bar"></div>
+        <div id="log"></div>
+    </div>
+</div>
+
+<div class="ov" id="inv-ov"></div>
+<div id="death-ov"><div class="dt">FALLEN IN BATTLE</div><div class="ds">Your allies fight on...</div></div>
+<div id="help-ov">
+    <h2>Controls</h2>
+    <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Arrows — move</p>
+    <p>Walk into enemies to attack</p>
+    <p><kbd>i</kbd> Inventory &nbsp; <kbd>.</kbd> Wait &nbsp; <kbd>t</kbd> Chat &nbsp; <kbd>?</kbd> Help</p>
+    <p><kbd>e</kbd> Equip &nbsp; <kbd>d</kbd> Drop &nbsp; <kbd>q</kbd> Use &nbsp; <kbd>Esc</kbd> Close</p>
+    <p style="color:#666;margin-top:6px;">Press ? or Esc to close</p>
+</div>
+<input type="text" id="chat-in" maxlength="200">
+
+<script>
+const C={0:'#111',1:'#c44',2:'#4c4',3:'#cc4',4:'#44c',5:'#c4c',6:'#4cc',7:'#ccc',
+         8:'#555',9:'#f66',10:'#6f6',11:'#ff6',12:'#66f',13:'#f6f',14:'#6ff',15:'#fff'};
+let ws,fr,ui='PLAY',ic=0;
+
+function connect(){
+    const srv=document.getElementById('srv').value.trim();
+    const btn=document.querySelector('#connect-screen button');
+    btn.textContent='Connecting...';btn.disabled=true;
+    try{ws=new WebSocket('ws://'+srv);}catch(e){
+        btn.textContent='Join the War';btn.disabled=false;
+        alert('Invalid server address');return;
+    }
+    ws.onopen=()=>{
+        document.getElementById('connect-screen').style.display='none';
+        document.getElementById('game').classList.add('active');
+        ws.send(JSON.stringify({type:'join'}));
+        // Delay resize so DOM has reflowed and map-wrap has real dimensions
+        setTimeout(sendResize,100);
+        setTimeout(sendResize,500);
+    };
+    ws.onmessage=e=>{try{fr=JSON.parse(e.data);render();}catch(ex){console.error('Bad frame',ex);}};
+    ws.onclose=e=>{
+        if(!fr){btn.textContent='Join the War';btn.disabled=false;
+            alert('Could not connect. Is the server running?\n(./start.sh)');return;}
+        alert('Disconnected from server');location.reload();
+    };
+    ws.onerror=()=>{};// onclose will fire after this
+}
+function send(m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m));}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function sendResize(){
+    const el=document.getElementById('map-wrap');
+    if(!el)return;
+    // Measure actual char size
+    const probe=document.createElement('span');
+    probe.style.cssText='position:absolute;visibility:hidden;white-space:pre;font:14px/1.15 Menlo,Monaco,Courier New,monospace';
+    probe.textContent='MMMMMMMMMM';
+    document.body.appendChild(probe);
+    const cw=(probe.offsetWidth||80)/10, ch=probe.offsetHeight||16;
+    document.body.removeChild(probe);
+    const w=el.clientWidth, h=el.clientHeight;
+    // Fallback if element not yet laid out
+    const cols=w>0?Math.floor(w/cw):100;
+    const rows=h>0?Math.floor(h/ch):40;
+    send({type:'resize',width:Math.max(40,cols),height:Math.max(20,rows+4)});
+}
+window.addEventListener('resize',sendResize);
+
+function render(){
+    if(!fr)return;
+    const p=fr.phase;
+    // Toggle screens
+    document.getElementById('story-scr').classList.toggle('active',p==='story');
+    document.getElementById('loot-scr').classList.toggle('active',p==='loot');
+    document.getElementById('battle').classList.toggle('active',p==='battle');
+
+    if(p==='story')rStory();
+    else if(p==='loot')rLoot();
+    else if(p==='battle')rBattle();
+}
+
+function rStory(){
+    let h=`<h2>${esc(fr.title)}</h2><div class="story-text">${esc(fr.text)}</div>`;
+    (fr.choices||[]).forEach((c,i)=>{
+        const cls=fr.player_choice===i?'chosen':'';
+        h+=`<button class="story-choice ${cls}" onclick="send({type:'story_choice',choice_idx:${i}})">${i+1}. ${esc(c)}</button>`;
+    });
+    if(fr.player_choice!=null)h+=`<div class="waiting">Waiting... (${fr.players_ready}/${fr.players_total})</div>`;
+    document.getElementById('story-box').innerHTML=h;
+}
+
+function rLoot(){
+    let h=`<h2>Battle Spoils</h2>`;
+    if(fr.picked){
+        h+=`<p style="color:#4c4">Claimed! Waiting... (${fr.players_ready}/${fr.players_total})</p>`;
+    } else {
+        h+=`<p style="color:#888;margin-bottom:10px">Choose one:</p>`;
+        (fr.loot_items||[]).forEach((it,i)=>{
+            let st=it.type==='weapon'?`+${it.damage} ATK`:it.type==='armor'?`+${it.defense} DEF`:`+${it.heal} HP`;
+            h+=`<div class="loot-item" onclick="send({type:'loot_pick',item_idx:${i}})">
+                <span>${esc(it.name)}</span><span style="color:#888">${st} <button class="pick">TAKE</button></span></div>`;
+        });
+    }
+    if(fr.stats)h+=`<div style="color:#555;margin-top:12px;font-size:12px">Weapon: ${esc(fr.stats.weapon)} | Armor: ${esc(fr.stats.armor)} | Lv ${fr.stats.level}</div>`;
+    document.getElementById('loot-box').innerHTML=h;
+}
+
+function rBattle(){
+    // Map
+    const me=document.getElementById('map');
+    let h='';
+    const rows=fr.map_rows||[],cols=fr.color_rows||[];
+    for(let y=0;y<rows.length;y++){
+        const r=rows[y],cr=cols[y];let ln='',cc=-1;
+        for(let x=0;x<r.length;x++){
+            const ch=r[x],c=cr[x];
+            if(c!==cc){if(cc!==-1)ln+='</span>';ln+=`<span style="color:${C[c]||'#ccc'}">`;cc=c;}
+            if(ch==='<')ln+='&lt;';else if(ch==='>')ln+='&gt;';else if(ch==='&')ln+='&amp;';else ln+=ch;
+        }
+        if(cc!==-1)ln+='</span>';h+=ln+'\n';
+    }
+    me.innerHTML=h;
+
+    // Header
+    const a=fr.army||{};
+    document.getElementById('btitle').textContent=fr.battle_title||'Battle';
+    document.getElementById('bc').textContent=`Allies:${a.blue||0}/${a.blue_total||0}`;
+    document.getElementById('rc').textContent=`Enemy:${a.red||0}/${a.red_total||0}`;
+
+    // Stats bar
+    const s=fr.stats||{};
+    const pct=s.hp/Math.max(1,s.max_hp);
+    const hc=pct>.7?'#4c4':pct>.3?'#cc4':'#c44';
+    document.getElementById('bar').innerHTML=
+        `<span style="color:${hc}">HP:${s.hp}/${s.max_hp}</span>`+
+        `<span class="hpb"><span class="hpf" style="width:${Math.round(pct*100)}%;background:${hc}"></span></span>`+
+        `<span>Lv${s.level}</span><span>STR:${s.str} DEF:${s.def}</span>`+
+        `<span style="color:#aa0">${s.weapon||'?'}</span>`+
+        `<span style="color:#666">${esc(s.name||'')}</span>`;
+
+    // Log (last few lines)
+    const le=document.getElementById('log');
+    le.innerHTML=(fr.log||[]).slice(-3).map(m=>`<span>${esc(m)} </span>`).join('');
+    le.scrollTop=le.scrollHeight;
+
+    // Death
+    document.getElementById('death-ov').style.display=fr.alive===false?'flex':'none';
+
+    if(ui==='INV')rInv();
+}
+
+function rInv(){
+    const inv=fr.inventory||[],s=fr.stats||{};
+    ic=Math.max(0,Math.min(ic,inv.length-1));
+    let h=`<h2>Inventory</h2><div style="color:#aa0;font-size:12px;margin-bottom:6px">Wpn:${esc(s.weapon)} Arm:${esc(s.armor)}</div>`;
+    if(!inv.length)h+='<div style="color:#555">(empty)</div>';
+    inv.forEach((it,i)=>{
+        let st=it.type==='weapon'?`+${it.damage}ATK`:it.type==='armor'?`+${it.defense}DEF`:it.heal?`+${it.heal}HP`:'';
+        const eq=it.equipped?'<span class="eq">*</span>':'';
+        h+=`<div class="ii${i===ic?' sel':''}" onclick="ic=${i};rInv()">${esc(it.name)}${eq}<span style="color:#666">${st}</span></div>`;
+    });
+    h+=`<div class="foot">[e]Equip [d]Drop [q]Use [Esc]Close [↑↓]Select</div>`;
+    const o=document.getElementById('inv-ov');o.innerHTML=h;o.style.display='block';
+}
+
+// Input
+document.getElementById('chat-in').addEventListener('keydown',e=>{
+    if(e.key==='Enter'){const v=e.target.value.trim();if(v)send({type:'chat',message:v});e.target.value='';e.target.style.display='none';ui='PLAY';}
+    else if(e.key==='Escape'){e.target.value='';e.target.style.display='none';ui='PLAY';}
+});
+
+document.addEventListener('keydown',e=>{
+    if(document.activeElement.tagName==='INPUT')return;
+    if(!fr)return;
+    const p=fr.phase;
+
+    if(p==='story'){const n=parseInt(e.key);if(n>=1&&n<=9)send({type:'story_choice',choice_idx:n-1});return;}
+    if(p==='loot')return;
+    if(p!=='battle')return;
+
+    // Help toggle
+    if(e.key==='?'){const h=document.getElementById('help-ov');h.style.display=h.style.display==='block'?'none':'block';return;}
+    if(e.key==='Escape'){
+        document.getElementById('help-ov').style.display='none';
+        if(ui==='INV'){document.getElementById('inv-ov').style.display='none';ui='PLAY';}
+        return;
+    }
+
+    if(ui==='INV'){
+        const inv=fr.inventory||[];
+        if(e.key==='i'){document.getElementById('inv-ov').style.display='none';ui='PLAY';}
+        else if(e.key==='ArrowUp'||e.key==='k'){ic=Math.max(0,ic-1);rInv();}
+        else if(e.key==='ArrowDown'||e.key==='j'){ic=Math.min(inv.length-1,ic+1);rInv();}
+        else if(e.key==='e')send({type:'equip',item_idx:ic});
+        else if(e.key==='d'){send({type:'drop',item_idx:ic});if(ic>0)ic--;}
+        else if(e.key==='q'){send({type:'use',item_idx:ic});if(ic>0)ic--;}
+        return;
+    }
+
+    const mv={'ArrowUp':[0,-1],'ArrowDown':[0,1],'ArrowLeft':[-1,0],'ArrowRight':[1,0],
+              'w':[0,-1],'a':[-1,0],'s':[0,1],'d':[1,0],'y':[-1,-1],'u':[1,-1],'b':[-1,1],'n':[1,1]};
+    if(mv[e.key]){e.preventDefault();send({type:'move',dx:mv[e.key][0],dy:mv[e.key][1]});}
+    else if(e.key==='.')send({type:'wait'});
+    else if(e.key==='g')send({type:'pickup'});
+    else if(e.key==='i'){ui='INV';ic=0;if(fr)rInv();}
+    else if(e.key==='t'){ui='CHAT';const ci=document.getElementById('chat-in');ci.style.display='block';ci.focus();}
+});
+</script>
+</body>
+</html>
