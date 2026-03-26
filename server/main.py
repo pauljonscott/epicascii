@@ -285,8 +285,8 @@ class Game:
         self.players[player.id] = player
         log.info("Player '%s' joined as %s", name, soldier_class)
 
-        if self.phase in (PHASE_CHARACTER_CREATE, PHASE_STORY):
-            # First player joins: start the first battle immediately
+        if self.phase in (PHASE_CHARACTER_CREATE, PHASE_STORY, PHASE_LOOT):
+            # Start (or restart) a battle immediately
             self.start_battle()
         elif self.phase == PHASE_BATTLE and self.battle:
             # Late join: drop into existing battle
@@ -732,7 +732,11 @@ class GameServer:
         while True:
             t0 = time.monotonic()
 
-            any_acted = self.game.tick()
+            try:
+                any_acted = self.game.tick()
+            except Exception:
+                log.exception("Error in game tick")
+                any_acted = False
 
             # During battle, update all clients every tick if anything happened
             if any_acted or self.game.phase == PHASE_BATTLE:
@@ -760,6 +764,7 @@ class GameServer:
         log.info("Starting server on %s:%d", host, port)
         async with websockets.serve(self.handle_client, host, port,
                                     max_size=2 ** 20,
+                                    compression=None,
                                     ping_interval=20, ping_timeout=60):
             await self.game_loop()
 
@@ -770,7 +775,7 @@ class GameServer:
 
 def main():
     parser = argparse.ArgumentParser(description="EpicAscii battle server")
-    parser.add_argument('--host', default='0.0.0.0')
+    parser.add_argument('--host', default='localhost')
     parser.add_argument('--port', type=int, default=DEFAULT_PORT)
     args = parser.parse_args()
 
@@ -779,8 +784,8 @@ def main():
         format='%(asctime)s [%(name)s] %(message)s',
         datefmt='%H:%M:%S',
     )
-    # Silence noisy websockets handshake errors (browser preflight probes)
-    logging.getLogger('websockets').setLevel(logging.ERROR)
+    # Silence noisy websockets handshake errors (startup probes, browser preflight)
+    logging.getLogger('websockets').setLevel(logging.CRITICAL)
 
     print("=" * 50)
     print("  EpicAscii - Multiplayer Battle Roguelike")

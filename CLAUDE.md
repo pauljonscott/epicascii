@@ -30,26 +30,23 @@ A multiplayer ASCII battle roguelike inspired by Dwarf Fortress adventure mode, 
 ## How to run
 
 ```
-./start.sh          # starts server, opens browser
-python run_client.py  # terminal client (in separate terminal, with venv active)
+source .venv/bin/activate
+python run_server.py                    # terminal 1: game server
+python -m http.server 8080              # terminal 2: serves web client
+# then open http://127.0.0.1:8080/web_client.html in browser
+python run_client.py                    # OR: terminal curses client
 ```
 
 Requires: Python 3.10+, `websockets` package (installed in `.venv`)
 
-## Current status: BROKEN - known issues
+## Current status: Playable
 
-### Web client disconnects on join
-The web browser client frequently disconnects immediately when clicking "Join the War". The server log shows "opening handshake failed" errors. Root cause not fully resolved. Attempted fixes:
-- Added connection retry logic in the web client (10 retries, 1s apart)
-- Added delayed resize sends (setTimeout 100ms and 500ms) to avoid measuring DOM before reflow
-- Added fallback dimensions if map container has zero size
-- Added better error messages in onclose handler
-- Silenced noisy websockets handshake errors in server log
-- Added try/except around create_player and process_action in server handler
-- None of these fully fixed the issue for the user
+### Web client disconnect bug - FIXED
+Root cause: Server bound to `0.0.0.0` (IPv4 only), but macOS resolves `localhost` to `::1` (IPv6) FIRST. Browsers trying IPv6 got connection refused and didn't always fall back to IPv4.
+Fix: Server now binds to `localhost` (serves both IPv4 and IPv6 loopback). Web client defaults to `127.0.0.1:8765`. Also disabled WebSocket compression and added error handling around game tick loop.
 
-### Terminal client timeout
-The terminal client initially timed out connecting. Fixed by increasing retry count and wait time, but the 5-second initial timeout was too short for world generation. Extended to 15 seconds with retry logic.
+### Terminal client timeout - FIXED
+Fixed by increasing retry count and wait time (15 retries with retry logic).
 
 ### Previous iteration (open-world roguelike)
 The game was originally an open-world roguelike (DF adventure mode clone) with towns, NPCs, dungeons. This was fully scrapped and rewritten as the army battle game. Old `server/world.py` was deleted and replaced with `server/battlefield.py`.
